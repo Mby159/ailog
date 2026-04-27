@@ -41,6 +41,9 @@ def _get_importer(format_name: str):
     elif format_name == "bilibili":
         from ailog.importers.bilibili import BilibiliImporter
         return BilibiliImporter()
+    elif format_name == "notion":
+        from ailog.importers.notion import NotionImporter
+        return NotionImporter()
     elif format_name == "generic_json":
         from ailog.importers.generic_json import GenericJSONImporter
         return GenericJSONImporter()
@@ -85,6 +88,12 @@ def _auto_detect_format(source_path: Path) -> str:
         from ailog.importers.bilibili import BilibiliImporter
         if BilibiliImporter().detect(source_path):
             return "bilibili"
+    except Exception:
+        pass
+    try:
+        from ailog.importers.notion import NotionImporter
+        if NotionImporter().detect(source_path):
+            return "notion"
     except Exception:
         pass
     return "generic_json"
@@ -264,6 +273,33 @@ def cmd_sync(args):
         print_sync_results([result])
 
 
+def cmd_notion_import(args):
+    """Import conversations from Notion pages into .ailog format."""
+    from ailog.importers.notion import NotionImporter
+
+    notion_key = os.environ.get("NOTION_API_KEY")
+    if not notion_key and not args.api_key:
+        print("Error: NOTION_API_KEY env var not set, or pass --api-key.", file=sys.stderr)
+        sys.exit(1)
+
+    parent_page_id = args.parent_page_id or os.environ.get("NOTION_PARENT_PAGE_ID")
+    if not parent_page_id:
+        print(
+            "Error: --parent-page-id required, or set NOTION_PARENT_PAGE_ID env var.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    importer = NotionImporter(api_key=notion_key or args.api_key, parent_page_id=parent_page_id)
+    ailog = importer.parse_from_api(parent_page_id)
+
+    output = args.output or "notion_import.ailog"
+    out_fmt = "jsonl" if output.endswith(".ailog") else "json"
+    ailog.save(output, fmt=out_fmt)
+    print(f"Imported {len(ailog.interactions)} interactions from Notion")
+    print(f"Saved to {output} ({out_fmt} format)")
+
+
 def cmd_export(args):
     """Export .ailog to other formats."""
     path = Path(args.file)
@@ -333,7 +369,7 @@ def main():
     # import
     p_import = sub.add_parser("import", help="Import AI conversations into .ailog format")
     p_import.add_argument("source", help="Source file/directory (ChatGPT export, zip, json)")
-    p_import.add_argument("--format", default="auto", choices=["auto", "chatgpt", "claude", "deepseek", "gemini", "youtube", "bilibili", "generic_json"], help="Source format (default: auto-detect)")
+    p_import.add_argument("--format", default="auto", choices=["auto", "chatgpt", "claude", "deepseek", "gemini", "youtube", "bilibili", "notion", "generic_json"], help="Source format (default: auto-detect)")
     p_import.add_argument("--output", "-o", help="Output file path (default: <source>.ailog)")
     p_import.add_argument("--scan", action="store_true", help="Scan for sensitive information after import")
     p_import.add_argument("--auto-redact", action="store_true", help="Auto-redact sensitive info during scan")
@@ -371,13 +407,20 @@ def main():
     p_sync = sub.add_parser("sync", help="Incremental sync: import only NEW interactions")
     p_sync.add_argument("source", help="Source file (conversations.json) or directory")
     p_sync.add_argument("--platform", "-p", required=True,
-                        choices=["chatgpt", "claude", "deepseek", "gemini", "youtube", "bilibili", "generic_json"],
+                        choices=["chatgpt", "claude", "deepseek", "gemini", "youtube", "bilibili", "notion", "generic_json"],
                         help="Platform format")
     p_sync.add_argument("--state", "-s", help="State file path (default: <source>.ailog.state.json)")
     p_sync.add_argument("--output", "-o", help="Output .ailog path (default: <source>.ailog)")
     p_sync.add_argument("--state-dir", "-d", help="Directory for state files (for directory mode)")
     p_sync.add_argument("--pattern", default="*.json", help="File pattern for directory mode")
     p_sync.set_defaults(func=cmd_sync)
+
+    # notion-import
+    p_ni = sub.add_parser("notion-import", help="Import conversations from Notion API into .ailog format")
+    p_ni.add_argument("--parent-page-id", help="Notion parent page ID (or set NOTION_PARENT_PAGE_ID env var)")
+    p_ni.add_argument("--api-key", help="Notion API key (or set NOTION_API_KEY env var)")
+    p_ni.add_argument("--output", "-o", help="Output .ailog file path (default: notion_import.ailog)")
+    p_ni.set_defaults(func=cmd_notion_import)
 
     args = parser.parse_args()
     if not args.command:
