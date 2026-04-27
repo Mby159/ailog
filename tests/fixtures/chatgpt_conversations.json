@@ -1,0 +1,104 @@
+[
+  {
+    "id": "conv_001",
+    "title": "Python Quick Sort",
+    "create_time": 1682345678.123,
+    "update_time": 1682345999.456,
+    "current_node": "node_4",
+    "mapping": {
+      "node_0": {
+        "id": "node_0",
+        "message": null,
+        "parent": null,
+        "children": ["node_1"]
+      },
+      "node_1": {
+        "id": "node_1",
+        "message": {
+          "id": "msg_001",
+          "author": {"role": "user"},
+          "content": {"parts": ["帮我写一个 Python 快速排序"]},
+          "create_time": 1682345678.123
+        },
+        "parent": "node_0",
+        "children": ["node_2"]
+      },
+      "node_2": {
+        "id": "node_2",
+        "message": {
+          "id": "msg_002",
+          "author": {"role": "assistant"},
+          "content": {"parts": ["这是一个 Python 快速排序的实现：\n\n```python\ndef quicksort(arr):\n    if len(arr) <= 1:\n        return arr\n    pivot = arr[len(arr) // 2]\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    return quicksort(left) + middle + quicksort(right)\n```"]},
+          "create_time": 1682345700.0,
+          "model": "gpt-4",
+          "metadata": {}
+        },
+        "parent": "node_1",
+        "children": ["node_3"]
+      },
+      "node_3": {
+        "id": "node_3",
+        "message": {
+          "id": "msg_003",
+          "author": {"role": "user"},
+          "content": {"parts": ["我的手机号是13812345678，帮我用这个号码注册个测试账号"]},
+          "create_time": 1682345800.0
+        },
+        "parent": "node_2",
+        "children": ["node_4"]
+      },
+      "node_4": {
+        "id": "node_4",
+        "message": {
+          "id": "msg_004",
+          "author": {"role": "assistant"},
+          "content": {"parts": ["好的，我已经帮您使用手机号 138****5678 注册了测试账号。验证码将发送到该号码。"]},
+          "create_time": 1682345850.0,
+          "model": "gpt-4",
+          "metadata": {}
+        },
+        "parent": "node_3",
+        "children": []
+      }
+    }
+  },
+  {
+    "id": "conv_002",
+    "title": "API Key Question",
+    "create_time": 1682350000.0,
+    "update_time": 1682350100.0,
+    "current_node": "node_7",
+    "mapping": {
+      "node_5": {
+        "id": "node_5",
+        "message": null,
+        "parent": null,
+        "children": ["node_6"]
+      },
+      "node_6": {
+        "id": "node_6",
+        "message": {
+          "id": "msg_005",
+          "author": {"role": "user"},
+          "content": {"parts": ["我的 OpenAI API key 是 sk-proj-abc123def456ghi789，帮我看看为什么报错"]},
+          "create_time": 1682350000.0
+        },
+        "parent": "node_5",
+        "children": ["node_7"]
+      },
+      "node_7": {
+        "id": "node_7",
+        "message": {
+          "id": "msg_006",
+          "author": {"role": "assistant"},
+          "content": {"parts": ["请不要在对话中分享 API Key，这是非常危险的！您的 key 已经暴露了，请立即去 platform.openai.com 重新生成一个。\n\n关于报错，常见原因有：\n1. API key 已过期\n2. 账户余额不足\n3. 请求频率超限"]},
+          "create_time": 1682350050.0,
+          "model": "gpt-4",
+          "metadata": {}
+        },
+        "parent": "node_6",
+        "children": []
+      }
+    }
+  }
+]

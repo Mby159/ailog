@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ailog"
+version = "0.1.0"
+description = "Platform-agnostic open format for AI interaction artifacts — 个人AI对话数据主权开放协议"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+homepage = "https://github.com/your-org/ailog"
+repository = "https://github.com/your-org/ailog"
+keywords = ["ai", "chat", "conversation", "export", "privacy", "data-sovereignty", "open-format"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Database",
+    "Topic :: Security",
+    "Topic :: Utilities",
+]
+
+dependencies = [
+    "fpdf2>=2.7.0",  # PDF export
+]
+
+[project.optional-dependencies]
+html = ["markdown>=3.0"]
+obsidian = ["markdown>=3.0"]
+notion = ["notion-client>=3.0.0"]
+mcp = ["mcp>=0.9.0"]
+privacy = ["ghostguard>=0.1.0"]
+search = ["jieba>=0.42.1", "numpy>=1.20"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0"]
+all = [
+    "ailog[html,obsidian,notion,mcp,privacy,search,dev]",
+]
+
+[project.scripts]
+ailog = "ailog.cli:main"
+ailog-mcp = "ailog.mcp_server:main"
+
+[tool.setuptools.packages.find]
+include = ["ailog*"]
+
+[tool.pytest.ini_options]
+testpaths = ["ailog/tests"]
+python_files = ["test_*.py"]

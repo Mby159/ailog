@@ -1,0 +1,13 @@
+[
+  {
+    "id": "gemini_conv_001",
+    "title": "Gemini Multimodal Test",
+    "created_at": "2026-04-26T11:00:00Z",
+    "messages": [
+      {"role": "user", "content": "Explain quantum computing in simple terms", "created_at": "2026-04-26T11:00:00Z"},
+      {"role": "model", "content": "Quantum computing uses qubits instead of classical bits. While a regular bit is either 0 or 1, a qubit can be both at the same time (superposition). This allows quantum computers to process many possibilities simultaneously.", "model": "gemini-2.0-flash", "created_at": "2026-04-26T11:00:15Z"},
+      {"role": "user", "content": "What about quantum entanglement?", "created_at": "2026-04-26T11:01:00Z"},
+      {"role": "model", "content": "Entanglement is when two qubits become linked — measuring one instantly determines the other, no matter the distance. Einstein called it \"spooky action at a distance\".", "model": "gemini-2.0-flash", "created_at": "2026-04-26T11:01:10Z"}
+    ]
+  }
+]

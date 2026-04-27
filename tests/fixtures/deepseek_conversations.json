@@ -1,0 +1,13 @@
+[
+  {
+    "id": "ds_conv_001",
+    "title": "R1 Thinking Test",
+    "created_at": "2026-04-26T10:00:00Z",
+    "messages": [
+      {"role": "user", "content": "1+1等于几？", "created_at": "2026-04-26T10:00:00Z"},
+      {"role": "assistant", "content": "1+1等于2。", "model": "deepseek-reasoner", "reasoning_content": "这是一个简单的加法问题。1+1=2。", "created_at": "2026-04-26T10:00:10Z"},
+      {"role": "user", "content": "那2+2呢？", "created_at": "2026-04-26T10:01:00Z"},
+      {"role": "assistant", "content": "2+2等于4。", "model": "deepseek-reasoner", "thinking": "和上面一样是简单加法。2+2=4。", "created_at": "2026-04-26T10:01:10Z"}
+    ]
+  }
+]

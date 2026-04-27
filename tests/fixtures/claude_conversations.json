@@ -1,0 +1,13 @@
+[
+  {
+    "id": "claude_conv_001",
+    "title": "Rust vs Go",
+    "created_at": "2026-04-26T09:00:00Z",
+    "messages": [
+      {"role": "human", "content": "Rust 和 Go 哪个更适合写 CLI 工具？", "created_at": "2026-04-26T09:00:00Z"},
+      {"role": "assistant", "content": "这取决于你的优先级：\n\n**Go 的优势**：\n- 编译快，交叉编译简单\n- 二进制文件小\n- 生态成熟（cobra, viper）\n\n**Rust 的优势**：\n- 性能更好\n- 类型系统更安全\n- 更好的错误处理\n\n如果追求开发速度选 Go，追求运行时安全和性能选 Rust。", "model": "claude-3-5-sonnet-20241022", "created_at": "2026-04-26T09:00:30Z"},
+      {"role": "human", "content": "那系统编程呢？", "created_at": "2026-04-26T09:01:00Z"},
+      {"role": "assistant", "content": "系统编程基本是 Rust 的主场。无 GC、零成本抽象、所有权模型，这些都是系统级编程的刚需。Go 虽然也能做，但 GC 停顿和运行时开销在高性能场景下是硬伤。", "model": "claude-3-5-sonnet-20241022", "created_at": "2026-04-26T09:01:20Z"}
+    ]
+  }
+]
