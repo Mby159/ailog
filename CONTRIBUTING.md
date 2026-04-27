@@ -1,84 +1,74 @@
-# 贡献指南
+﻿# 璐＄尞鎸囧崡
 
-感谢你对 AILog 项目的兴趣！欢迎贡献代码、文档或反馈问题。
-
-## 开发环境
-
+鎰熻阿浣犲 AILog 椤圭洰鐨勫叴瓒ｏ紒娆㈣繋璐＄尞浠ｇ爜銆佹枃妗ｆ垨鍙嶉闂銆?
+## 寮€鍙戠幆澧?
 ```bash
-# 克隆项目
-git clone https://github.com/your-org/ailog.git
+# 鍏嬮殕椤圭洰
+git clone https://github.com/Mby159/ailog.git
 cd ailog
 
-# 创建虚拟环境（推荐）
+# 鍒涘缓铏氭嫙鐜锛堟帹鑽愶級
 python -m venv .venv
 .venv\Scripts\activate  # Windows
 # source .venv/bin/activate  # macOS/Linux
 
-# 安装开发依赖
-pip install -e ".[all]"
+# 瀹夎寮€鍙戜緷璧?pip install -e ".[all]"
 
-# 运行测试
+# 杩愯娴嬭瘯
 python -m pytest ailog/tests/ -v
 ```
 
-## 项目结构
+## 椤圭洰缁撴瀯
 
 ```
 ailog/
-├── core/models.py          # 数据模型
-├── importers/              # 导入器
-│   ├── chatgpt.py
-│   ├── claude.py
-│   └── ...
-├── exporters/              # 导出器
-│   ├── html.py
-│   ├── obsidian.py
-│   ├── pdf.py
-│   └── notion.py
-├── bridge/                 # 外部工具桥接
-├── cli.py                  # CLI 入口
-├── sync.py                 # 增量同步
-└── mcp_server.py           # MCP 服务器
-```
+鈹溾攢鈹€ core/models.py          # 鏁版嵁妯″瀷
+鈹溾攢鈹€ importers/              # 瀵煎叆鍣?鈹?  鈹溾攢鈹€ chatgpt.py
+鈹?  鈹溾攢鈹€ claude.py
+鈹?  鈹斺攢鈹€ ...
+鈹溾攢鈹€ exporters/              # 瀵煎嚭鍣?鈹?  鈹溾攢鈹€ html.py
+鈹?  鈹溾攢鈹€ obsidian.py
+鈹?  鈹溾攢鈹€ pdf.py
+鈹?  鈹斺攢鈹€ notion.py
+鈹溾攢鈹€ bridge/                 # 澶栭儴宸ュ叿妗ユ帴
+鈹溾攢鈹€ cli.py                  # CLI 鍏ュ彛
+鈹溾攢鈹€ sync.py                 # 澧為噺鍚屾
+鈹斺攢鈹€ mcp_server.py           # MCP 鏈嶅姟鍣?```
 
-## 添加新平台导入器
+## 娣诲姞鏂板钩鍙板鍏ュ櫒
 
-1. 在 `ailog/importers/` 创建 `xxx.py`
-2. 继承 `BaseImporter` 类
-3. 实现 `detect()` 和 `parse()` 方法
-4. 在 `ailog/importers/__init__.py` 注册
-5. 添加测试用例
+1. 鍦?`ailog/importers/` 鍒涘缓 `xxx.py`
+2. 缁ф壙 `BaseImporter` 绫?3. 瀹炵幇 `detect()` 鍜?`parse()` 鏂规硶
+4. 鍦?`ailog/importers/__init__.py` 娉ㄥ唽
+5. 娣诲姞娴嬭瘯鐢ㄤ緥
 
-参考示例：`ailog/importers/chatgpt.py`
+鍙傝€冪ず渚嬶細`ailog/importers/chatgpt.py`
 
-## 添加新导出器
+## 娣诲姞鏂板鍑哄櫒
 
-1. 在 `ailog/exporters/` 创建 `xxx.py`
-2. 继承 `BaseExporter` 类
-3. 实现 `export()` 方法
-4. 在 `ailog/exporters/__init__.py` 注册
-5. 在 `cli.py` 的 `cmd_export` 添加支持
+1. 鍦?`ailog/exporters/` 鍒涘缓 `xxx.py`
+2. 缁ф壙 `BaseExporter` 绫?3. 瀹炵幇 `export()` 鏂规硶
+4. 鍦?`ailog/exporters/__init__.py` 娉ㄥ唽
+5. 鍦?`cli.py` 鐨?`cmd_export` 娣诲姞鏀寔
 
-参考示例：`ailog/exporters/obsidian.py`
+鍙傝€冪ず渚嬶細`ailog/exporters/obsidian.py`
 
-## 代码规范
+## 浠ｇ爜瑙勮寖
 
-- 使用 Python 3.10+ 语法
-- 使用 type hints
-- 保持函数简短（<50 行）
-- 所有公共 API 需要类型标注
-
-## 测试
+- 浣跨敤 Python 3.10+ 璇硶
+- 浣跨敤 type hints
+- 淇濇寔鍑芥暟绠€鐭紙<50 琛岋級
+- 鎵€鏈夊叕鍏?API 闇€瑕佺被鍨嬫爣娉?
+## 娴嬭瘯
 
 ```bash
-# 运行所有测试
-python -m pytest ailog/tests/ -v
+# 杩愯鎵€鏈夋祴璇?python -m pytest ailog/tests/ -v
 
-# 运行单个测试
+# 杩愯鍗曚釜娴嬭瘯
 python -m pytest ailog/tests/test_chatgpt_importer.py -v
 ```
 
-## 问题反馈
+## 闂鍙嶉
 
-- Bug 报告：https://github.com/your-org/ailog/issues
-- 功能建议：https://github.com/your-org/ailog/discussions
+- Bug 鎶ュ憡锛歨ttps://github.com/Mby159/ailog/issues
+- 鍔熻兘寤鸿锛歨ttps://github.com/Mby159/ailog/discussions
