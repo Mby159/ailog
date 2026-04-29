@@ -1,11 +1,15 @@
-﻿"""
-AILog CLI 鈥?Command-line tool for AI interaction log management.
+"""
+AILog CLI — Command-line tool for AI interaction log management.
 
 Usage:
   python -m ailog.cli import <source> [--format auto|chatgpt|json] [--output out.ailog]
   python -m ailog.cli info <file.ailog>
   python -m ailog.cli scan <file.ailog> [--auto-redact]
   python -m ailog.cli convert <file.ailog> [--to json|jsonl]
+  python -m ailog.cli youtube-fetch <url> [--output out.ailog]
+  python -m ailog.cli sync <source> -p <platform> [--state-dir dir]
+  python -m ailog.cli notion-import --parent-page-id <id>
+  python -m ailog.cli export <file.ailog> --format <fmt>
 """
 
 from __future__ import annotations
@@ -17,9 +21,10 @@ import sys
 from pathlib import Path
 
 from ailog.core.models import AILogFile
+from ailog.search.cli import add_search_parser
 
 
-# 鈹€鈹€ Lazy importer loading 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+# ── Lazy importer loading ─────────────────────────────────────────────────────
 
 def _get_importer(format_name: str):
     """Get importer by format name."""
@@ -99,49 +104,91 @@ def _auto_detect_format(source_path: Path) -> str:
     return "generic_json"
 
 
-# 鈹€鈹€ Commands 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+# ── YouTube URL detection helper ──────────────────────────────────────────────
+
+def _is_youtube_url(source: str) -> bool:
+    """Check if source looks like a YouTube URL."""
+    from ailog.importers.youtube import YouTubeImporter
+    return YouTubeImporter.is_youtube_url(source)
+
+
+# ── Commands ──────────────────────────────────────────────────────────────────
 
 def cmd_import(args):
     """Import AI conversations into .ailog format."""
-    source = Path(args.source)
+    source_str = args.source
+
+    # YouTube URL: auto-fetch transcript
+    if _is_youtube_url(source_str):
+        from ailog.importers.youtube import YouTubeImporter
+        importer = YouTubeImporter()
+        print(f"Detected YouTube URL, fetching transcript...")
+        ailog = importer.fetch_and_parse(source_str)
+        print(f"Parsed {len(ailog.interactions)} interactions from YouTube video")
+        output = args.output or f"yt_{ailog.interactions[0].custom.get('youtube_video_id', 'video') if ailog.interactions else 'video'}.ailog"
+        out_fmt = "jsonl" if output.endswith(".ailog") else "json"
+        ailog.save(output, fmt=out_fmt)
+        print(f"Saved to {output}")
+        return
+
+    # File-based import
+    source = Path(source_str)
     if not source.exists():
         print(f"Error: Source not found: {source}", file=sys.stderr)
         sys.exit(1)
 
-    # Determine format
     fmt = args.format
     if fmt == "auto":
         fmt = _auto_detect_format(source)
         print(f"Auto-detected format: {fmt}")
 
-    # Import
     importer = _get_importer(fmt)
     print(f"Importing from {source} using {fmt} importer...")
     ailog = importer.parse(source)
     print(f"Parsed {len(ailog.interactions)} interactions from {ailog.metadata.source_platform}")
 
-    # Scan for privacy if requested
     if args.scan:
         from ailog.bridge.ghostguard import scan_ailog_file, get_scan_status
         status = get_scan_status()
         print(f"Privacy scanner: {status['primary']}")
         ailog = scan_ailog_file(ailog, strategy="placeholder", auto_redact=args.auto_redact)
-        # Count sensitive interactions
         sensitive_count = sum(
             1 for ix in ailog.interactions
             if ix.sensitivity and ix.sensitivity.max_risk_level.value != "low"
         )
         print(f"Privacy scan: {sensitive_count} interactions contain sensitive info")
 
-    # Determine output path
     output = args.output
     if output is None:
         output = source.stem + ".ailog"
 
-    # Save
     out_fmt = "jsonl" if output.endswith(".ailog") else "json"
     ailog.save(output, fmt=out_fmt)
     print(f"Saved to {output} ({out_fmt} format)")
+
+
+def cmd_youtube_fetch(args):
+    """Fetch YouTube video transcript and save as .ailog."""
+    from ailog.importers.youtube import YouTubeImporter
+    importer = YouTubeImporter()
+    url_or_id = args.url
+
+    try:
+        ailog = importer.fetch_and_parse(url_or_id)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"\nParsed {len(ailog.interactions)} interactions")
+
+    output = args.output
+    if output is None:
+        video_id = ailog.interactions[0].custom.get("youtube_video_id", "video") if ailog.interactions else "video"
+        output = f"yt_{video_id}.ailog"
+
+    out_fmt = "jsonl" if output.endswith(".ailog") else "json"
+    ailog.save(output, fmt=out_fmt)
+    print(f"Saved to {output}")
 
 
 def cmd_info(args):
@@ -164,25 +211,21 @@ def cmd_info(args):
         print(f"Tags: {', '.join(meta.tags)}")
     print(f"Interactions: {len(ailog.interactions)}")
 
-    # Session breakdown
     sessions = {}
     for ix in ailog.interactions:
         sessions.setdefault(ix.session_id, []).append(ix)
     print(f"Sessions: {len(sessions)}")
 
-    # Sensitivity summary
     sensitive = sum(
         1 for ix in ailog.interactions
         if ix.sensitivity and ix.sensitivity.max_risk_level.value != "low"
     )
     if sensitive > 0:
         print(f"Sensitive interactions: {sensitive}")
-    # Artifact summary
     total_artifacts = sum(len(ix.artifacts) for ix in ailog.interactions)
     if total_artifacts > 0:
         print(f"Artifacts: {total_artifacts}")
 
-    # Show first few session titles
     if args.verbose and sessions:
         print("\nSessions:")
         for sid, ixs in list(sessions.items())[:10]:
@@ -210,7 +253,6 @@ def cmd_scan(args):
     ailog = AILogFile.load(path)
     ailog = scan_ailog_file(ailog, strategy="placeholder", auto_redact=args.auto_redact)
 
-    # Report
     for ix in ailog.interactions:
         if ix.sensitivity and ix.sensitivity.detected_items:
             print(f"\nInteraction {ix.id} (turn {ix.turn_index}):")
@@ -219,7 +261,6 @@ def cmd_scan(args):
                 redacted = " [REDACTED]" if item.redacted else ""
                 print(f"  - {item.info_type} ({item.risk_level.value}) at {item.field}{redacted}")
 
-    # Save if output specified
     if args.output:
         ailog.save(args.output)
         print(f"\nSaved scanned result to {args.output}")
@@ -357,23 +398,31 @@ def cmd_export(args):
         print(f"Exported to {result}")
 
 
-# 鈹€鈹€ Main 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+# ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(
         prog="ailog",
-        description="AILog 鈥?AI interaction log management tool",
+        description="AILog — AI interaction log management tool",
     )
     sub = parser.add_subparsers(dest="command", help="Available commands")
 
     # import
     p_import = sub.add_parser("import", help="Import AI conversations into .ailog format")
-    p_import.add_argument("source", help="Source file/directory (ChatGPT export, zip, json)")
-    p_import.add_argument("--format", default="auto", choices=["auto", "chatgpt", "claude", "deepseek", "gemini", "youtube", "bilibili", "notion", "generic_json"], help="Source format (default: auto-detect)")
+    p_import.add_argument("source", help="Source file, directory, or YouTube URL")
+    p_import.add_argument("--format", default="auto",
+                          choices=["auto", "chatgpt", "claude", "deepseek", "gemini", "youtube", "bilibili", "notion", "generic_json"],
+                          help="Source format (default: auto-detect)")
     p_import.add_argument("--output", "-o", help="Output file path (default: <source>.ailog)")
     p_import.add_argument("--scan", action="store_true", help="Scan for sensitive information after import")
     p_import.add_argument("--auto-redact", action="store_true", help="Auto-redact sensitive info during scan")
     p_import.set_defaults(func=cmd_import)
+
+    # youtube-fetch
+    p_yt = sub.add_parser("youtube-fetch", help="Fetch YouTube video transcript and save as .ailog")
+    p_yt.add_argument("url", help="YouTube video URL or bare video ID")
+    p_yt.add_argument("--output", "-o", help="Output .ailog file path (default: yt_<video_id>.ailog)")
+    p_yt.set_defaults(func=cmd_youtube_fetch)
 
     # info
     p_info = sub.add_parser("info", help="Show info about an .ailog file")
@@ -398,7 +447,9 @@ def main():
     # export
     p_export = sub.add_parser("export", help="Export .ailog to other formats")
     p_export.add_argument("file", help=".ailog file path")
-    p_export.add_argument("--format", default="html", choices=["obsidian", "html", "pdf", "notion"], help="Target format (default: html)")
+    p_export.add_argument("--format", default="html",
+                          choices=["obsidian", "html", "pdf", "notion"],
+                          help="Target format (default: html)")
     p_export.add_argument("--output", "-o", help="Output path (file or directory)")
     p_export.add_argument("--notion-page-id", help="Notion parent page ID (or set NOTION_PARENT_PAGE_ID env var)")
     p_export.set_defaults(func=cmd_export)
@@ -421,6 +472,9 @@ def main():
     p_ni.add_argument("--api-key", help="Notion API key (or set NOTION_API_KEY env var)")
     p_ni.add_argument("--output", "-o", help="Output .ailog file path (default: notion_import.ailog)")
     p_ni.set_defaults(func=cmd_notion_import)
+
+    # search subcommands
+    add_search_parser(sub)
 
     args = parser.parse_args()
     if not args.command:

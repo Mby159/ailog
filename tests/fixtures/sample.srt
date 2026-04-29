@@ -1,0 +1,7 @@
+1
+00:00:00 --> 00:00:05
+Hello world, this is a sample subtitle.
+
+2
+00:00:05 --> 00:00:10
+This is a test SRT file for YouTube importer.
