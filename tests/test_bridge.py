@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 
 import sys
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from ailog.core.models import (
     AILogFile, AILogFileMetadata, Interaction, Message,
@@ -70,7 +70,7 @@ def test_markdown_export():
 def test_index_and_search():
     """Test indexing .ailog into SimpleSearchEngine and searching."""
     # We need SimpleSearchEngine from file-brain-mcp
-    sys.path.insert(0, str(Path(__file__).parent.parent.parent / "file-brain-mcp"))
+    sys.path.insert(0, str(Path(__file__).parent.parent / "file-brain-mcp"))
     try:
         from file_brain_mcp import SimpleSearchEngine
     except ImportError:

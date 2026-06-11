@@ -29,9 +29,12 @@ git clone https://github.com/Mby159/ailog.git
 cd ailog
 
 # Install as a package (recommended)
-pip install -e .
+python -m pip install -e .
 
-# Or use directly without installation
+# View commands
+ailog --help
+
+# Developer fallback
 python -m ailog.cli --help
 ```
 
@@ -39,25 +42,25 @@ python -m ailog.cli --help
 
 ```bash
 # From conversations.json
-python -m ailog.cli import conversations.json -o my-chats.ailog
+ailog import conversations.json -o my-chats.ailog
 
 # From ChatGPT-exported zip
-python -m ailog.cli import chatgpt-export.zip -o my-chats.ailog
+ailog import chatgpt-export.zip -o my-chats.ailog
 
 # Auto-detect format
-python -m ailog.cli import data.json --format auto -o output.ailog
+ailog import data.json --format auto -o output.ailog
 ```
 
 ### Import Claude Conversations
 
 ```bash
-python -m ailog.cli import claude-conversations.json -o claude-chats.ailog
+ailog import claude-conversations.json -o claude-chats.ailog
 ```
 
 ### View File Info
 
 ```bash
-python -m ailog.cli info my-chats.ailog -v
+ailog info my-chats.ailog -v
 ```
 
 Output example:
@@ -77,10 +80,10 @@ Sessions:
 
 ```bash
 # Scan for sensitive information
-python -m ailog.cli scan my-chats.ailog
+ailog scan my-chats.ailog
 
 # Auto-redact
-python -m ailog.cli scan my-chats.ailog --auto-redact -o redacted.ailog
+ailog scan my-chats.ailog --auto-redact -o redacted.ailog
 ```
 
 ### Incremental Sync
@@ -97,16 +100,16 @@ ailog sync conversations.json -p chatgpt -o synced.ailog
 
 ```bash
 # Export to Obsidian Markdown
-python -m ailog.cli export my-chats.ailog --to obsidian -o ./obsidian-vault/
+ailog export my-chats.ailog --format obsidian -o ./obsidian-vault/
 
 # Export to HTML (Claude-style, light/dark theme)
-python -m ailog.cli export my-chats.ailog --to html -o my-chats.html
+ailog export my-chats.ailog --format html -o my-chats.html
 
 # Export to PDF
-python -m ailog.cli export my-chats.ailog --to pdf -o my-chats.pdf
+ailog export my-chats.ailog --format pdf -o my-chats.pdf
 
 # JSONL → JSON
-python -m ailog.cli convert my-chats.ailog --to json -o my-chats.json
+ailog convert my-chats.ailog --to json -o my-chats.json
 ```
 
 ## .ailog Format
@@ -209,7 +212,7 @@ See [`spec/FORMAT.md`](spec/FORMAT.md)
 ## Run Tests
 
 ```bash
-python -m pytest ailog/tests/ -v
+python -m pytest tests/ -v
 ```
 
 ## License
