@@ -235,7 +235,7 @@ class HTMLExporter(BaseExporter):
             stats_html=stats_html, content_html=content_html
         )
 
-    def export(self, ailog: ALogFile, output_path: str | Path) -> Path:
+    def export(self, ailog: AILogFile, output_path: str | Path) -> Path:
         output = Path(output_path)
         if output.is_dir() or output.suffix == '':
             output.mkdir(parents=True, exist_ok=True)
