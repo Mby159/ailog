@@ -9,8 +9,6 @@ description = "Platform-agnostic open format for AI interaction artifacts â€” ä¸
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
-homepage = "https://github.com/your-org/ailog"
-repository = "https://github.com/your-org/ailog"
 keywords = ["ai", "chat", "conversation", "export", "privacy", "data-sovereignty", "open-format"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -28,6 +26,11 @@ classifiers = [
 dependencies = [
     "fpdf2>=2.7.0",  # PDF export
 ]
+
+[project.urls]
+Homepage = "https://github.com/Mby159/ailog"
+Repository = "https://github.com/Mby159/ailog"
+Issues = "https://github.com/Mby159/ailog/issues"
 
 [project.optional-dependencies]
 html = ["markdown>=3.0"]
@@ -49,5 +52,5 @@ ailog-mcp = "ailog.mcp_server:main"
 include = ["ailog*"]
 
 [tool.pytest.ini_options]
-testpaths = ["ailog/tests"]
+testpaths = ["tests"]
 python_files = ["test_*.py"]

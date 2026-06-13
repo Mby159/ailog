@@ -39,15 +39,20 @@ except ImportError:
     pass
 
 if not _HAS_GHOSTGUARD:
-    # Fallback: try privacy-guard (single-file version)
+    # Fallback: prefer an installed privacy-guard package. If unavailable,
+    # fall back to a sibling checkout for local monorepo-style development.
     try:
-        _pg_path = Path(__file__).parent.parent.parent.parent / "privacy-guard"
-        if _pg_path.is_dir():
-            sys.path.insert(0, str(_pg_path))
         from privacy_guard import PrivacyGuard
         _HAS_PRIVACY_GUARD = True
     except ImportError:
-        pass
+        try:
+            _pg_path = Path(__file__).parent.parent.parent.parent / "privacy-guard"
+            if _pg_path.is_dir() and str(_pg_path) not in sys.path:
+                sys.path.insert(0, str(_pg_path))
+            from privacy_guard import PrivacyGuard
+            _HAS_PRIVACY_GUARD = True
+        except ImportError:
+            pass
 
 
 def _ghostguard_risk_to_ailog(risk_str: str) -> RiskLevel:
