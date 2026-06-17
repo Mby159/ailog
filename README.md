@@ -206,6 +206,27 @@ ailog convert my-chats.ailog --to json -o my-chats.json
 | [privacy-proxy](https://github.com/Mby159/privacy-proxy) | OpenAI 兼容隐私代理 |
 | [SplitMind](https://github.com/Mby159/splitmind) | 多 AI 任务编排 |
 | [File Brain](https://github.com/Mby159/file-brain) | 本地文件语义搜索 |
+| [LocalChain](https://github.com/Mby159/local-chain) | 本地可验篗台账（热路径：AILog → LocalChain） |
+
+## 与 LocalChain 集成（可验篗台账热路径）
+
+AILog 可以直接将 interactions 锰定到本地 [LocalChain](https://github.com/Mby159/local-chain) 服务器，得到可验篗的记录。Evidence 层不在热路径上。
+
+```bash
+# 启动 LocalChain 服务器（默认 :3456）
+node -e "require('@local-chain/server').createServer('./.localchain', { port: 3456 }).listen()"
+
+# 锰定一个 .ailog
+python -m ailog.cli anchor my.ailog --server http://127.0.0.1:3456
+
+# 验证已锰定的 .ailog
+python -m ailog.cli verify-anchor my.ailog
+```
+
+AILog 会在每个被锰定的 `Interaction.custom.localchain_anchor` 里记录 `block_index` / `leaf_index` / `leaf_hash` / `server_url` / `anchored_at`。验证时会重新计算 leaf hash 并调用 LocalChain 的 Merkle 验证接口；任何 message / artifact 被篡改都会被检出为 `tampered`。
+
+该热路径只包含 ledger（LocalChain），不包含 Evidence；Evidence 层是另外的冷路径（公证书 / 版权主张），详见 `~/pip/reviews/ai-log-evidence-local-chain-boundary-2026-06-16.md`。
+
 
 ## 运行测试
 

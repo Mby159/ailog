@@ -400,6 +400,103 @@ def cmd_export(args):
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
+def cmd_anchor(args):
+    """Anchor an .ailog file to a LocalChain server."""
+    from ailog.bridge.localchain import (
+        DEFAULT_SERVER_URL,
+        LocalChainClient,
+        LocalChainError,
+        anchor_ailog_file,
+    )
+
+    file_path = Path(args.file)
+    if not file_path.is_file():
+        print(f"Error: file not found: {file_path}", file=sys.stderr)
+        sys.exit(2)
+
+    text = file_path.read_text(encoding="utf-8")
+    try:
+        ailog = AILogFile.from_jsonl(text) if file_path.suffix == ".jsonl" else AILogFile.from_json(text)
+    except Exception as e:
+        print(f"Error: failed to parse {file_path}: {e}", file=sys.stderr)
+        sys.exit(2)
+
+    server = args.server or os.environ.get("LOCALCHAIN_SERVER") or DEFAULT_SERVER_URL
+    client = LocalChainClient(server_url=server, timeout=float(args.timeout))
+
+    try:
+        ailog, results = anchor_ailog_file(
+            ailog,
+            client=client,
+            only_unanchored=not args.force,
+        )
+    except LocalChainError as e:
+        print(f"LocalChain error: {e}", file=sys.stderr)
+        sys.exit(3)
+
+    out_path = Path(args.output) if args.output else file_path
+    if file_path.suffix == ".jsonl":
+        out_path.write_text(ailog.to_jsonl(), encoding="utf-8")
+    else:
+        out_path.write_text(ailog.to_json(), encoding="utf-8")
+
+    if args.json:
+        print(json.dumps({
+            "anchored": len(results),
+            "server": server,
+            "output": str(out_path),
+            "results": [r.to_dict() for r in results],
+        }, ensure_ascii=False, indent=2))
+    else:
+        print(f"Anchored {len(results)} interaction(s) to {server}")
+        print(f"Updated: {out_path}")
+
+
+def cmd_verify_anchor(args):
+    """Verify an anchored .ailog file against LocalChain."""
+    from ailog.bridge.localchain import (
+        DEFAULT_SERVER_URL,
+        LocalChainClient,
+        verify_ailog_file,
+    )
+
+    file_path = Path(args.file)
+    if not file_path.is_file():
+        print(f"Error: file not found: {file_path}", file=sys.stderr)
+        sys.exit(2)
+
+    text = file_path.read_text(encoding="utf-8")
+    try:
+        ailog = AILogFile.from_jsonl(text) if file_path.suffix == ".jsonl" else AILogFile.from_json(text)
+    except Exception as e:
+        print(f"Error: failed to parse {file_path}: {e}", file=sys.stderr)
+        sys.exit(2)
+
+    client = None
+    if args.server:
+        client = LocalChainClient(server_url=args.server, timeout=float(args.timeout))
+
+    reports = verify_ailog_file(ailog, client=client, server_url=args.server or None)
+
+    summary = {"ok": 0, "tampered": 0, "unanchored": 0, "error": 0}
+    for rep in reports:
+        summary[rep["status"]] = summary.get(rep["status"], 0) + 1
+
+    if args.json:
+        print(json.dumps({"summary": summary, "reports": reports}, ensure_ascii=False, indent=2))
+    else:
+        print(
+            f"ok={summary['ok']} tampered={summary['tampered']} "
+            f"unanchored={summary['unanchored']} error={summary['error']}"
+        )
+        for rep in reports:
+            if rep["status"] not in ("ok", "unanchored"):
+                print(f"  - {rep['interaction_id']}: {rep['status']}")
+
+    if summary["tampered"] > 0 or summary["error"] > 0:
+        sys.exit(1)
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="ailog",
@@ -475,6 +572,24 @@ def main():
 
     # search subcommands
     add_search_parser(sub)
+
+    # anchor
+    p_anchor = sub.add_parser("anchor", help="Anchor an .ailog file to a LocalChain server")
+    p_anchor.add_argument("file", help=".ailog file path")
+    p_anchor.add_argument("--server", help="LocalChain server URL (default: $LOCALCHAIN_SERVER or http://localhost:3456)")
+    p_anchor.add_argument("--output", "-o", help="Output file (default: rewrite in place)")
+    p_anchor.add_argument("--timeout", default="5.0", help="Request timeout seconds (default: 5.0)")
+    p_anchor.add_argument("--force", action="store_true", help="Re-anchor even already-anchored interactions")
+    p_anchor.add_argument("--json", action="store_true", help="Print machine-readable JSON result")
+    p_anchor.set_defaults(func=cmd_anchor)
+
+    # verify-anchor
+    p_va = sub.add_parser("verify-anchor", help="Verify an anchored .ailog file against LocalChain")
+    p_va.add_argument("file", help=".ailog file path")
+    p_va.add_argument("--server", help="LocalChain server URL (default: each interaction's recorded server_url)")
+    p_va.add_argument("--timeout", default="5.0", help="Request timeout seconds (default: 5.0)")
+    p_va.add_argument("--json", action="store_true", help="Print machine-readable JSON result")
+    p_va.set_defaults(func=cmd_verify_anchor)
 
     args = parser.parse_args()
     if not args.command:
