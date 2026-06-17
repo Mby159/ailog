@@ -42,3 +42,6 @@ Thumbs.db
 *.pdf
 .venv/
 venv/
+
+# Bridge tests scratch
+tests/_lc_tmp_*/
