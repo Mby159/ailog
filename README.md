@@ -225,6 +225,18 @@ python -m ailog.cli verify-anchor my.ailog
 
 AILog 会在每个被锰定的 `Interaction.custom.localchain_anchor` 里记录 `block_index` / `leaf_index` / `leaf_hash` / `server_url` / `anchored_at`。验证时会重新计算 leaf hash 并调用 LocalChain 的 Merkle 验证接口；任何 message / artifact 被篡改都会被检出为 `tampered`。
 
+如果要把已经锰定的 interaction 交给 Evidence 做 proof bundle，可以导出 AILog/LocalChain 的公共桥接材料：
+
+```bash
+python -m ailog.cli export-anchor-artifact my.ailog \
+  --interaction <interaction-id-or-index> \
+  --artifact-out artifact.json \
+  --anchor-out anchor.json
+```
+
+- `artifact.json` 是 AILog 锰定到 LocalChain 的 canonical record。
+- `anchor.json` 是该 interaction 上的 `custom.localchain_anchor` 元数据。
+
 该热路径只包含 ledger（LocalChain），不包含 Evidence；Evidence 层是另外的冷路径（公证书 / 版权主张），详见 `~/pip/reviews/ai-log-evidence-local-chain-boundary-2026-06-16.md`。
 
 

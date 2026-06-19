@@ -452,6 +452,61 @@ def cmd_anchor(args):
         print(f"Updated: {out_path}")
 
 
+def _select_interaction(ailog: AILogFile, selector: str):
+    """Select an interaction by id or zero-based index."""
+    if selector.isdigit():
+        idx = int(selector)
+        if idx < 0 or idx >= len(ailog.interactions):
+            raise ValueError(f"interaction index out of range: {idx}")
+        return ailog.interactions[idx]
+    for interaction in ailog.interactions:
+        if interaction.id == selector:
+            return interaction
+    raise ValueError(f"interaction not found: {selector}")
+
+
+def cmd_export_anchor_artifact(args):
+    """Export the canonical LocalChain artifact and anchor metadata from an .ailog file."""
+    from ailog.bridge.localchain import export_anchor_artifact
+
+    file_path = Path(args.file)
+    if not file_path.is_file():
+        print(f"Error: file not found: {file_path}", file=sys.stderr)
+        sys.exit(2)
+
+    text = file_path.read_text(encoding="utf-8")
+    try:
+        ailog = AILogFile.from_jsonl(text) if file_path.suffix == ".jsonl" else AILogFile.from_json(text)
+    except Exception as e:
+        print(f"Error: failed to parse {file_path}: {e}", file=sys.stderr)
+        sys.exit(2)
+
+    try:
+        interaction = _select_interaction(ailog, args.interaction)
+        exported = export_anchor_artifact(interaction, ailog.ailog_version)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(2)
+
+    artifact_json = json.dumps(exported["artifact"], ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    anchor_json = json.dumps(exported["anchor"], ensure_ascii=False, indent=2)
+
+    if args.artifact_out:
+        Path(args.artifact_out).write_text(artifact_json, encoding="utf-8")
+    if args.anchor_out:
+        Path(args.anchor_out).write_text(anchor_json, encoding="utf-8")
+
+    if args.json:
+        print(json.dumps({"artifact": exported["artifact"], "anchor": exported["anchor"]}, ensure_ascii=False, indent=2))
+    elif not args.artifact_out and not args.anchor_out:
+        print(artifact_json)
+    else:
+        if args.artifact_out:
+            print(f"Artifact written to {args.artifact_out}")
+        if args.anchor_out:
+            print(f"Anchor written to {args.anchor_out}")
+
+
 def cmd_verify_anchor(args):
     """Verify an anchored .ailog file against LocalChain."""
     from ailog.bridge.localchain import (
@@ -572,6 +627,15 @@ def main():
 
     # search subcommands
     add_search_parser(sub)
+
+    # export-anchor-artifact
+    p_eaa = sub.add_parser("export-anchor-artifact", help="Export canonical LocalChain artifact + anchor metadata from an anchored .ailog interaction")
+    p_eaa.add_argument("file", help=".ailog file path")
+    p_eaa.add_argument("--interaction", required=True, help="Interaction id or zero-based index")
+    p_eaa.add_argument("--artifact-out", help="Write canonical artifact JSON to this path")
+    p_eaa.add_argument("--anchor-out", help="Write LocalChain anchor metadata JSON to this path")
+    p_eaa.add_argument("--json", action="store_true", help="Print combined machine-readable JSON")
+    p_eaa.set_defaults(func=cmd_export_anchor_artifact)
 
     # anchor
     p_anchor = sub.add_parser("anchor", help="Anchor an .ailog file to a LocalChain server")
