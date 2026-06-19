@@ -67,7 +67,7 @@ def _leaf_hash(record: Dict[str, Any]) -> str:
     return hashlib.sha256(_stable_json(record).encode("utf-8")).hexdigest()
 
 
-def _interaction_record(interaction: Interaction, ailog_version: str) -> Dict[str, Any]:
+def interaction_record(interaction: Interaction, ailog_version: str) -> Dict[str, Any]:
     """Build the stable record that AILog hands to LocalChain.
 
     Only includes the parts that should be evidence-fixed: id, timestamp,
@@ -94,6 +94,36 @@ def _interaction_record(interaction: Interaction, ailog_version: str) -> Dict[st
     if interaction.sensitivity is not None and interaction.sensitivity.overall_risk is not None:
         payload["sensitivity_level"] = interaction.sensitivity.overall_risk.value
     return payload
+
+
+# Backwards-compatible internal alias. Prefer the public name above.
+_interaction_record = interaction_record
+
+
+def localchain_anchor(interaction: Interaction) -> Optional[Dict[str, Any]]:
+    """Return ``custom.localchain_anchor`` from an interaction, if present."""
+    return (interaction.custom or {}).get("localchain_anchor")
+
+
+def export_anchor_artifact(
+    interaction: Interaction, ailog_version: str
+) -> Dict[str, Dict[str, Any]]:
+    """Export the public AILog/LocalChain bridge artifacts.
+
+    Returns a dict with:
+
+    ``artifact``
+        The canonical record that AILog anchored into LocalChain.
+
+    ``anchor``
+        The ``custom.localchain_anchor`` metadata written by ``anchor``.
+
+    Raises ``ValueError`` if the interaction has not been anchored yet.
+    """
+    anchor = localchain_anchor(interaction)
+    if not anchor:
+        raise ValueError(f"interaction is not anchored: {interaction.id}")
+    return {"artifact": interaction_record(interaction, ailog_version), "anchor": anchor}
 
 
 # ──────────────────────────────────────────────
@@ -201,7 +231,7 @@ def anchor_ailog_file(
     for idx, interaction in enumerate(ailog_file.interactions):
         if only_unanchored and "localchain_anchor" in (interaction.custom or {}):
             continue
-        record = _interaction_record(interaction, ailog_file.ailog_version)
+        record = interaction_record(interaction, ailog_file.ailog_version)
         selected.append((idx, interaction, record))
 
     if not selected:
@@ -270,7 +300,7 @@ def verify_ailog_file(
                 cli = LocalChainClient(server_url=target_url)
                 cached_clients[target_url] = cli
 
-        record = _interaction_record(interaction, ailog_file.ailog_version)
+        record = interaction_record(interaction, ailog_file.ailog_version)
         local_leaf_hash = _leaf_hash(record)
         block_index = int(anchor.get("block_index"))
         leaf_index = int(anchor.get("leaf_index"))
@@ -310,6 +340,9 @@ __all__ = [
     "LocalChainRejected",
     "LocalChainClient",
     "LocalChainAnchorResult",
+    "interaction_record",
+    "localchain_anchor",
+    "export_anchor_artifact",
     "anchor_ailog_file",
     "verify_ailog_file",
 ]

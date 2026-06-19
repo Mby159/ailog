@@ -14,6 +14,8 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
+import tempfile
 import threading
 import time
 import unittest
@@ -26,6 +28,7 @@ from ailog.bridge.localchain import (
     LocalChainUnavailable,
     anchor_ailog_file,
     verify_ailog_file,
+    export_anchor_artifact,
     _stable_json,
 )
 from ailog.core.models import (
@@ -205,6 +208,94 @@ class LocalChainBridgeMockTests(unittest.TestCase):
         for rep in reports:
             self.assertEqual(rep["status"], "ok", rep)
             self.assertTrue(rep["valid"])
+
+    def test_export_anchor_artifact_helper_and_cli(self):
+        ailog = _make_ailog_file(num=2)
+        client = LocalChainClient(server_url=self.url, timeout=5.0)
+        anchored, _ = anchor_ailog_file(ailog, client=client)
+
+        exported = export_anchor_artifact(anchored.interactions[1], anchored.ailog_version)
+        self.assertEqual(exported["artifact"]["id"], "int-1")
+        self.assertEqual(exported["anchor"]["block_index"], 0)
+        self.assertEqual(exported["anchor"]["leaf_index"], 1)
+
+        tmp = Path(tempfile.mkdtemp(prefix="ailog-export-test-"))
+        try:
+            ailog_path = tmp / "sample.ailog"
+            artifact_path = tmp / "artifact.json"
+            anchor_path = tmp / "anchor.json"
+            ailog_path.write_text(anchored.to_json(), encoding="utf-8")
+
+            res = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "ailog.cli",
+                    "export-anchor-artifact",
+                    str(ailog_path),
+                    "--interaction",
+                    "int-1",
+                    "--artifact-out",
+                    str(artifact_path),
+                    "--anchor-out",
+                    str(anchor_path),
+                ],
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(res.returncode, 0, res.stderr + res.stdout)
+            cli_artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+            cli_anchor = json.loads(anchor_path.read_text(encoding="utf-8"))
+            self.assertEqual(cli_artifact, exported["artifact"])
+            self.assertEqual(cli_anchor, exported["anchor"])
+
+            res_index = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "ailog.cli",
+                    "export-anchor-artifact",
+                    str(ailog_path),
+                    "--interaction",
+                    "1",
+                    "--json",
+                ],
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(res_index.returncode, 0, res_index.stderr + res_index.stdout)
+            combined = json.loads(res_index.stdout)
+            self.assertEqual(combined["artifact"], exported["artifact"])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_export_anchor_artifact_rejects_unanchored(self):
+        ailog = _make_ailog_file(num=1)
+        with self.assertRaises(ValueError):
+            export_anchor_artifact(ailog.interactions[0], ailog.ailog_version)
+
+        tmp = Path(tempfile.mkdtemp(prefix="ailog-export-unanchored-"))
+        try:
+            ailog_path = tmp / "sample.ailog"
+            ailog_path.write_text(ailog.to_json(), encoding="utf-8")
+            res = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "ailog.cli",
+                    "export-anchor-artifact",
+                    str(ailog_path),
+                    "--interaction",
+                    "int-0",
+                    "--json",
+                ],
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(res.returncode, 2)
+            self.assertIn("not anchored", res.stderr)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
     def test_only_unanchored_skips_already_anchored(self):
         ailog = _make_ailog_file(num=2)
