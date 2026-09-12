@@ -107,9 +107,9 @@ def _parse_conversation(conv: Dict[str, Any], conv_idx: int) -> List[Interaction
                 turn_index=turn_index,
                 messages=messages,
                 sensitivity=SensitivityInfo(
-                    max_risk_level=RiskLevel.LOW,
+                    max_risk_level=RiskLevel.CRITICAL,  # P0 fix: was LOW
                     detected_items=[],
-                    scanned_by="none",
+                    scanned_by="none (pending scan)",
                 ),
                 custom={"deepseek_title": title},
             )
@@ -127,9 +127,9 @@ def _parse_conversation(conv: Dict[str, Any], conv_idx: int) -> List[Interaction
                 turn_index=turn_index,
                 messages=[pending_user_msg],
                 sensitivity=SensitivityInfo(
-                    max_risk_level=RiskLevel.LOW,
+                    max_risk_level=RiskLevel.CRITICAL,  # P0 fix: was LOW
                     detected_items=[],
-                    scanned_by="none",
+                    scanned_by="none (pending scan)",
                 ),
                 custom={"deepseek_title": title},
             )

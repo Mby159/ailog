@@ -94,6 +94,16 @@ def scan_interaction_ghostguard(
         The same interaction with sensitivity field populated
     """
     if not _HAS_GHOSTGUARD:
+        import warnings
+        warnings.warn(
+            "GhostGuard is not installed. Interaction will not be scanned.",
+            stacklevel=2,
+        )
+        interaction.sensitivity = SensitivityInfo(
+            max_risk_level=RiskLevel.CRITICAL,
+            detected_items=[],
+            scanned_by="none (WARNING: GhostGuard not installed)",
+        )
         return interaction
 
     guard = GhostGuard()
@@ -152,6 +162,16 @@ def scan_interaction_privacy_guard(
     Similar to scan_interaction_ghostguard but uses the simpler privacy-guard API.
     """
     if not _HAS_PRIVACY_GUARD:
+        import warnings
+        warnings.warn(
+            "privacy-guard is not installed. Interaction will not be scanned.",
+            stacklevel=2,
+        )
+        interaction.sensitivity = SensitivityInfo(
+            max_risk_level=RiskLevel.CRITICAL,
+            detected_items=[],
+            scanned_by="none (WARNING: privacy-guard not installed)",
+        )
         return interaction
 
     guard = PrivacyGuard()
@@ -222,11 +242,16 @@ def scan_ailog_file(
         scanner = scan_interaction_privacy_guard
     else:
         # No scanner available, mark as unscanned
+        import warnings
+        warnings.warn(
+            "No privacy scanner installed. Interactions are NOT scanned.",
+            stacklevel=2,
+        )
         for interaction in ailog.interactions:
             interaction.sensitivity = SensitivityInfo(
-                max_risk_level=RiskLevel.LOW,
+                max_risk_level=RiskLevel.CRITICAL,
                 detected_items=[],
-                scanned_by="none",
+                scanned_by="none (WARNING: no scanner installed)",
             )
         return ailog
 
