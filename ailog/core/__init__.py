@@ -1,4 +1,11 @@
 """AILog core package."""
+from .canonical import (
+    CanonicalJSONError,
+    MAX_SAFE_INTEGER,
+    canonical_json,
+    canonical_sha256,
+    loads_strict,
+)
 from .models import (
     AILogFile,
     AILogFileMetadata,
@@ -18,6 +25,11 @@ from .models import (
 )
 
 __all__ = [
+    "CanonicalJSONError",
+    "MAX_SAFE_INTEGER",
+    "canonical_json",
+    "canonical_sha256",
+    "loads_strict",
     "AILogFile",
     "AILogFileMetadata",
     "Interaction",

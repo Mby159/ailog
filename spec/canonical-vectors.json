@@ -1,0 +1,123 @@
+{
+  "spec": "AILog Canonical JSON (CJSON)",
+  "spec_version": "0.1",
+  "normative_source": "ailog/spec/FORMAT.md",
+  "note": "Conformance contract for every AILog implementation. 'canonical' is hand-specified by the rules; 'sha256' is the SHA-256 of its UTF-8 bytes. An implementation that fails any vector is not AILog-compatible.",
+  "vectors": [
+    {
+      "id": "V1-key-sort-flat",
+      "why": "C2: object keys sorted ascending",
+      "input": {
+        "b": 1,
+        "a": 2
+      },
+      "canonical": "{\"a\":2,\"b\":1}",
+      "sha256": "d3626ac30a87e6f7a6428233b3c68299976865fa5508e4267c5415c76af7a772"
+    },
+    {
+      "id": "V2-nested-and-array-order",
+      "why": "C2 recursion + arrays keep their order",
+      "input": {
+        "z": [
+          3,
+          1,
+          2
+        ],
+        "a": {
+          "y": 1,
+          "x": 2
+        }
+      },
+      "canonical": "{\"a\":{\"x\":2,\"y\":1},\"z\":[3,1,2]}",
+      "sha256": "1fe7b19f1351f1078c91d41e62505b88405acd526be27591f18ba0b728a7e37c"
+    },
+    {
+      "id": "V3-unicode-not-escaped",
+      "why": "C4: non-ASCII emitted raw, not \\uXXXX",
+      "input": {
+        "msg": "你好，世界"
+      },
+      "canonical": "{\"msg\":\"你好，世界\"}",
+      "sha256": "e3ea628c6bfb1793017d34e1ea80c5c5c0b7bb2d385d55c818b7a78f53235f61"
+    },
+    {
+      "id": "V4-escapes",
+      "why": "C4: only \" \\ and U+0000-U+001F are escaped",
+      "input": {
+        "s": "line1\nline2\ttab\"quote\\back\u0001ctrl"
+      },
+      "canonical": "{\"s\":\"line1\\nline2\\ttab\\\"quote\\\\back\\u0001ctrl\"}",
+      "sha256": "94ea8c50a7789004347b363e79b9efe26682acd17019a8261eb30b6e3acecbf0"
+    },
+    {
+      "id": "V5-empty-containers",
+      "why": "C3: empty object/array stay compact",
+      "input": {
+        "a": {},
+        "b": []
+      },
+      "canonical": "{\"a\":{},\"b\":[]}",
+      "sha256": "aeeba1e56a144077f89e26c930dad7cf933e9383cfb8e33ddff618233b29be76"
+    },
+    {
+      "id": "V6-null-value",
+      "why": "C6: null is kept only when it carries meaning",
+      "input": {
+        "a": null,
+        "b": 1
+      },
+      "canonical": "{\"a\":null,\"b\":1}",
+      "sha256": "c0bf82ad036cb0a5a03d6759c1b7b8b1f70a39b32dd96ed3977c7f2831ee3b56"
+    },
+    {
+      "id": "V7-codepoint-key-order",
+      "why": "C2: code point order, NOT UTF-16 order (U+FFFD < U+10000)",
+      "input": {
+        "𐀀": 1,
+        "�": 2
+      },
+      "canonical": "{\"�\":2,\"𐀀\":1}",
+      "sha256": "12b55cfe70d239f7c0522c11df4ccbdb2af9d70f7cd12fa9a826cedb5d3b6f98"
+    },
+    {
+      "id": "V8-ailog-interaction-record",
+      "why": "realistic anchor payload",
+      "input": {
+        "ailog_version": "0.1",
+        "type": "ailog.interaction",
+        "id": "ix_01",
+        "timestamp": "2026-06-18T00:00:01Z",
+        "session_id": "s1",
+        "turn_index": 0,
+        "messages_digest": "abc123"
+      },
+      "canonical": "{\"ailog_version\":\"0.1\",\"id\":\"ix_01\",\"messages_digest\":\"abc123\",\"session_id\":\"s1\",\"timestamp\":\"2026-06-18T00:00:01Z\",\"turn_index\":0,\"type\":\"ailog.interaction\"}",
+      "sha256": "6c89cf8b1e02710fb2e0ce0fed90c2d9421875734b495453c1201f3c398a2ae2"
+    },
+    {
+      "id": "V9-max-safe-integer",
+      "why": "C5: 2^53-1 is the largest allowed integer",
+      "input": {
+        "n": 9007199254740991
+      },
+      "canonical": "{\"n\":9007199254740991}",
+      "sha256": "e1da48c6a6089f06ecb4e0a2259e658e3786b2420f52baccdf929ec6460d7b41"
+    },
+    {
+      "id": "V10-reject-float",
+      "why": "C5: floats are forbidden in the hash domain",
+      "input": {
+        "n": 1.5
+      },
+      "invalid": true
+    },
+    {
+      "id": "V11-reject-bigint",
+      "why": "C5: integers beyond 2^53-1 are forbidden",
+      "input": {
+        "n": 9007199254740993
+      },
+      "invalid": true
+    }
+  ]
+}

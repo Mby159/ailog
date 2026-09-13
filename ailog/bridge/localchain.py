@@ -8,8 +8,9 @@ verified later.
 
 Design notes:
   - LocalChain is the local tamper-evident ledger; it is content-agnostic.
-  - This bridge sends a stable, sorted JSON record per interaction so the
-    leaf hash on both sides is reproducible.
+  - Leaf hashes are SHA-256 over Canonical JSON (see spec/FORMAT.md,
+    "Canonical JSON"). Both AILog and LocalChain use the same rules, so
+    the leaf hash is reproducible across languages by construction.
   - The LocalChain SDK is a Node project; communication is over HTTP.
   - Network access is optional. If the server is unreachable, the bridge
     raises ``LocalChainUnavailable`` instead of corrupting the AILogFile.
@@ -17,7 +18,6 @@ Design notes:
 
 from __future__ import annotations
 
-import hashlib
 import json
 import urllib.error
 import urllib.request
@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
+from ailog.core.canonical import canonical_json, canonical_sha256
 from ailog.core.models import AILogFile, Interaction
 
 
@@ -54,17 +55,27 @@ class LocalChainRejected(LocalChainError):
 
 
 def _stable_json(obj: Any) -> str:
-    """Stable JSON for hashing/transport — sorted keys, no extra spacing."""
-    return json.dumps(obj, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    """Canonical JSON for hashing/transport.
+
+    Thin alias over :func:`ailog.core.canonical.canonical_json`, which
+    implements the "Canonical JSON" section of ``spec/FORMAT.md``. Kept under
+    the historic name because callers and tests already reference it.
+    """
+    return canonical_json(obj)
 
 
 def _digest(obj: Any) -> str:
-    return hashlib.sha256(_stable_json(obj).encode("utf-8")).hexdigest()
+    return canonical_sha256(obj)
 
 
 def _leaf_hash(record: Dict[str, Any]) -> str:
-    """Hash of the JSON.stringify(record) — matches LocalChain core/merkle.js."""
-    return hashlib.sha256(_stable_json(record).encode("utf-8")).hexdigest()
+    """Merkle leaf hash: SHA-256 over the record's Canonical JSON bytes.
+
+    This used to use a locally-grown sorted JSON and merely *assume* LocalChain
+    agreed. LocalChain now runs the same Canonical JSON, so agreement is
+    guaranteed by CJSON C1-C7 instead of by luck.
+    """
+    return canonical_sha256(record)
 
 
 def interaction_record(interaction: Interaction, ailog_version: str) -> Dict[str, Any]:
