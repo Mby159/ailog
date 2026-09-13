@@ -154,8 +154,19 @@ def test_split_into_chunks():
     assert all(len(c) <= 50 for c in chunks), "All chunks <= max_chars"
 
 
-def test_build_index_tfidf():
-    """Test building a FAISS index with Tfidf backend."""
+def test_build_index_tfidf(monkeypatch):
+    """Test building a FAISS index with Tfidf backend.
+
+    Pin the backend instead of trusting the environment: _get_embedding_backend()
+    prefers sentence-transformers whenever it is importable, so on a machine that
+    has that extra installed the auto-detected backend is the ST one and the
+    assertion on "sklearn-tfidf" failed. This test is about the TF-IDF code path,
+    so force it explicitly.
+    """
+    import ailog.search.engine as engine
+
+    monkeypatch.setattr(engine, "_get_embedding_backend", lambda: engine._TfidfBackend())
+
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
         ailog_path = make_test_ailog_file(tmp)
@@ -172,6 +183,18 @@ def test_build_index_tfidf():
         assert (idx_dir / "index.faiss").exists()
         assert (idx_dir / "meta.json").exists()
         assert (idx_dir / "chunks.jsonl").exists()
+
+
+def test_auto_backend_selection_returns_known_backend():
+    """Auto-detection must always yield one of the two known backends.
+
+    This is the contract callers rely on (e.g. the backend name reported by the
+    CLI), and it must hold both with and without the sentence-transformers extra.
+    """
+    import ailog.search.engine as engine
+
+    backend = engine._get_embedding_backend()
+    assert backend.name in {"sentence-transformers", "sklearn-tfidf"}, backend.name
 
 
 def test_rebuild_deduplicates():
