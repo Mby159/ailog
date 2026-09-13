@@ -1,6 +1,8 @@
 """Tests for DeepSearch engine."""
 
 import tempfile
+
+import pytest
 from pathlib import Path
 
 import sys
@@ -314,3 +316,67 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"FAIL: {name}: {e}")
     print(f"\n{passed}/{len(tests)} tests passed")
+
+
+def test_search_scores_are_meaningful():
+    """Scores must not collapse to 0.0.
+
+    Regression: the score divided FAISS's squared L2 distance by the maximum
+    embedding *norm* (~1.0 for L2-normalized vectors), so every distance was
+    larger than the denominator and every result clamped to 0.0000. The UI
+    showed a flat, useless column of zeros.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
+        ailog_path = make_test_ailog_file(tmp)
+
+        builder = IndexBuilder(tmp / "search_idx")
+        builder.build([ailog_path], force=True)
+
+        engine = SearchEngine(tmp / "search_idx")
+        engine.load()
+
+        results = engine.search("machine learning", top_k=3)
+        assert results, "expected at least one hit"
+        assert any(r.similarity_score > 0.0 for r in results), (
+            "every score is 0.0 -- the distance-to-similarity conversion is wrong"
+        )
+        assert all(0.0 <= r.similarity_score <= 1.0 for r in results)
+
+
+def test_tfidf_query_uses_the_fitted_vocabulary():
+    """A query must be embedded in the space the index was built in.
+
+    The TF-IDF backend used to re-fit per call, so queries were transformed in
+    a brand new vocabulary and the neighbours were meaningless.
+    """
+    from ailog.search.engine import _TfidfBackend
+
+    backend = _TfidfBackend().fit(["machine learning algorithms", "neural networks"])
+    assert backend.fitted
+    dim = backend.dim
+    assert dim > 0
+    # transform() maps something unseen to the all-zero vector instead of
+    # blowing up or changing shape.
+    assert backend.encode(["completely unseen vocabulary"]).shape == (1, dim)
+
+
+def test_index_persists_the_vectorizer(tmp_path):
+    """A built TF-IDF index must carry its vectorizer so queries stay valid."""
+    from ailog.search.engine import _TfidfBackend
+
+    backend = _TfidfBackend().fit(["one two three", "four five six"])
+    saved = backend.save(tmp_path)
+    assert saved.exists()
+
+    restored = _TfidfBackend().load(tmp_path).encode(["one two three"])
+    original = backend.encode(["one two three"])
+    assert (restored == original).all()
+
+
+def test_missing_vectorizer_gives_an_actionable_error(tmp_path):
+    from ailog.search.engine import _TfidfBackend
+
+    with pytest.raises(FileNotFoundError, match="search build --force"):
+        _TfidfBackend().load(tmp_path)
+

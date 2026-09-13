@@ -23,9 +23,10 @@ classifiers = [
     "Topic :: Utilities",
 ]
 
-dependencies = [
-    "fpdf2>=2.7.0",  # PDF export
-]
+# No hard dependencies: the core format, importers, exporters and the CLI are
+# standard library only. PDF, Notion, MCP, YouTube and semantic search each pull
+# their own optional extra -- see [project.optional-dependencies].
+dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/Mby159/ailog"
@@ -33,15 +34,42 @@ Repository = "https://github.com/Mby159/ailog"
 Issues = "https://github.com/Mby159/ailog/issues"
 
 [project.optional-dependencies]
-html = ["markdown>=3.0"]
-obsidian = ["markdown>=3.0"]
+# Exporters
+pdf = ["fpdf2>=2.7.0"]
 notion = ["notion-client>=3.0.0"]
+
+# Importers
+youtube = ["youtube-transcript-api>=0.6"]
+
+# Integrations
 mcp = ["mcp>=0.9.0"]
 privacy = ["ghostguard>=0.1.0"]
-search = ["jieba>=0.42.1", "numpy>=1.20"]
-dev = ["pytest>=7.0", "pytest-cov>=4.0"]
+
+# Semantic search. numpy + scikit-learn + faiss-cpu is the minimum that makes
+# `ailog search` work at all; scikit-learn is the offline TF-IDF backend.
+search = ["numpy>=1.20", "scikit-learn>=1.3", "faiss-cpu>=1.7"]
+
+# Same, plus the higher-quality sentence-transformers embedding backend, which
+# `ailog.search.engine` prefers when it is importable.
+search-embeddings = [
+    "numpy>=1.20",
+    "scikit-learn>=1.3",
+    "faiss-cpu>=1.7",
+    "sentence-transformers>=2.2",
+]
+
+# Everything needed to run `pytest tests/` to completion.
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "notion-client>=3.0.0",
+    "numpy>=1.20",
+    "scikit-learn>=1.3",
+    "faiss-cpu>=1.7",
+]
+
 all = [
-    "ailog[html,obsidian,notion,mcp,privacy,search,dev]",
+    "ailog[pdf,notion,youtube,mcp,privacy,search,dev]",
 ]
 
 [project.scripts]

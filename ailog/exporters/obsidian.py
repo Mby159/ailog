@@ -1,4 +1,4 @@
-﻿"""
+"""
 AILog Obsidian Exporter
 
 Exports AILogFile to Obsidian-compatible Markdown files.

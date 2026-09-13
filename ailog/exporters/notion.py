@@ -27,9 +27,10 @@ import re
 import textwrap
 from dataclasses import asdict
 from datetime import datetime
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
-from notion_client import AsyncClient
+if TYPE_CHECKING:  # notion-client is an optional extra (ailog[notion])
+    from notion_client import AsyncClient
 
 from ailog.core.models import (
     AILogFile,
@@ -332,8 +333,15 @@ class NotionExporter:
         self._client: AsyncClient | None = None
 
     @property
-    def client(self) -> AsyncClient:
+    def client(self) -> "AsyncClient":
         if self._client is None:
+            try:
+                from notion_client import AsyncClient
+            except ImportError as exc:
+                raise ImportError(
+                    "Notion export requires notion-client. "
+                    "Install it with: pip install 'ailog[notion]'"
+                ) from exc
             self._client = AsyncClient(auth=self.api_key)
         return self._client
 

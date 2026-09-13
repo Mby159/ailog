@@ -1,4 +1,4 @@
-﻿"""
+"""
 AILog 鈫?File Brain Bridge
 
 Indexes .ailog files into File Brain's SimpleSearchEngine,

@@ -48,7 +48,12 @@ class PDFExporter(BaseExporter):
         raise NotImplementedError("PDF exporter does not support export_string, use export()")
 
     def export(self, ailog: AILogFile, output_path: str | Path) -> Path:
-        from fpdf import FPDF
+        try:
+            from fpdf import FPDF
+        except ImportError as exc:
+            raise ImportError(
+                "PDF export requires fpdf2. Install it with: pip install 'ailog[pdf]'"
+            ) from exc
 
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=15)

@@ -20,13 +20,20 @@ from __future__ import annotations
 
 import json
 import os
+import pickle
 import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError as exc:  # pragma: no cover - exercised through the CLI
+    raise ImportError(
+        "ailog search requires numpy, scikit-learn and faiss-cpu. "
+        "Install them with: pip install 'ailog[search]'"
+    ) from exc
 
 from ailog.core.models import AILogFile
 
@@ -129,6 +136,10 @@ class _SentenceTransformerBackend:
     def __init__(self):
         pass
 
+    def fit(self, texts: List[str]) -> "_SentenceTransformerBackend":
+        """No-op: the model has a fixed dimension and needs no corpus fit."""
+        return self
+
     @property
     def dim(self) -> int:
         model = _load_sentence_transformer()
@@ -156,29 +167,79 @@ def _load_sentence_transformer():
 
 
 class _TfidfBackend:
-    """sklearn TfidfVectorizer backend (fallback, no network required)."""
+    """sklearn TfidfVectorizer backend (fallback, no network required).
+
+    The vectorizer must be fitted exactly once, over the whole corpus, and then
+    reused for every batch *and* for every later query. Fitting per call would
+    put each batch and each query in its own vector space, which silently
+    produces meaningless neighbours.
+    """
 
     name = "sklearn-tfidf"
-    _vectorizer = None
-    _fitted = False
+    vectorizer_file = "vectorizer.pkl"
+
+    def __init__(self):
+        self._vectorizer = None
 
     @property
-    def dim(self) -> int:
-        # Tfidf dimension is dynamic; use 5000 as upper bound for FAISS index
-        return 5000
+    def fitted(self) -> bool:
+        return self._vectorizer is not None
 
-    def encode(self, texts: List[str]) -> np.ndarray:
+    def fit(self, texts: List[str]) -> "_TfidfBackend":
         from sklearn.feature_extraction.text import TfidfVectorizer
+
         self._vectorizer = TfidfVectorizer(
             max_features=5000,
             ngram_range=(1, 3),
             min_df=1,
         )
-        embeddings = self._vectorizer.fit_transform(texts).toarray().astype("float32")
+        self._vectorizer.fit(texts)
+        return self
+
+    @property
+    def dim(self) -> int:
+        """Real vocabulary width -- not the 5000 upper bound.
+
+        FAISS fixes the index dimension at construction, so reporting a cap
+        instead of the actual width made every add() fail its shape check.
+        """
+        if self._vectorizer is None:
+            raise RuntimeError(
+                "TF-IDF backend needs fit() before its dimension is known"
+            )
+        return len(self._vectorizer.vocabulary_)
+
+    def encode(self, texts: List[str]) -> np.ndarray:
+        if self._vectorizer is None:
+            # Single-call convenience: fit on the texts we were handed.
+            self.fit(texts)
+        embeddings = (
+            self._vectorizer.transform(texts).toarray().astype("float32")
+        )
         # Normalize for cosine similarity
         norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
         norms = np.maximum(norms, 1e-8)
         return embeddings / norms
+
+    def save(self, index_dir: Path | str) -> Path:
+        if self._vectorizer is None:
+            raise RuntimeError("cannot save an unfitted TF-IDF backend")
+        path = Path(index_dir) / self.vectorizer_file
+        with open(path, "wb") as fh:
+            pickle.dump(self._vectorizer, fh)
+        return path
+
+    def load(self, index_dir: Path | str) -> "_TfidfBackend":
+        path = Path(index_dir) / self.vectorizer_file
+        if not path.exists():
+            raise FileNotFoundError(
+                f"Missing {self.vectorizer_file} in {index_dir}. The index was "
+                "built with the TF-IDF backend, so it cannot be queried without "
+                "its vectorizer. Rebuild with: ailog search build --force"
+            )
+        with open(path, "rb") as fh:
+            self._vectorizer = pickle.load(fh)
+        return self
 
 
 # ── Index Builder ─────────────────────────────────────────────────────────────
@@ -305,10 +366,15 @@ class IndexBuilder:
             print("No chunks to index.", file=sys.stderr)
             return {"chunks": 0, "new": 0, "status": "empty"}
 
+        # Fit the backend once, over the whole corpus, *before* batching.
+        # For TF-IDF this decides the vocabulary and therefore the vector
+        # dimension that the FAISS index has to be created with.
+        texts = [c.text for c in all_chunks]
+        self.backend.fit(texts)
+
         # Embed and index
         dim = self.backend.dim
         print(f"Embedding {len(all_chunks)} chunks (dim={dim})...", file=sys.stderr)
-        texts = [c.text for c in all_chunks]
 
         embeddings = []
         for i in range(0, len(texts), batch_size):
@@ -326,12 +392,18 @@ class IndexBuilder:
 
         # Persist
         faiss.write_index(index, str(self.index_dir / "index.faiss"))
+
+        # Queries must be embedded with the same fitted vectorizer.
+        if hasattr(self.backend, "save"):
+            self.backend.save(self.index_dir)
         with open(self.index_dir / "meta.json", "w", encoding="utf-8") as f:
             json.dump({
                 "backend": self.backend.name,
                 "dimension": dim,
                 "chunk_count": len(all_chunks),
                 "max_l2_distance": round(max_l2, 4),
+                "score_metric": "cosine",
+                "vectors_normalized": True,
                 "version": "0.1",
             }, f, ensure_ascii=False, indent=2)
 
@@ -404,6 +476,13 @@ class SearchEngine:
         with open(meta_path, "r", encoding="utf-8") as f:
             self._meta = json.load(f)
 
+        # A query has to be embedded in the same space as the documents. The
+        # sentence-transformers backend is deterministic from its model name,
+        # but TF-IDF is fitted on the corpus, so restore the saved vectorizer
+        # rather than auto-detecting a fresh one.
+        if self._meta.get("backend") == _TfidfBackend.name:
+            self._backend = _TfidfBackend().load(self.index_dir)
+
         self._index = faiss.read_index(str(self.index_dir / "index.faiss"))
 
         self._chunks = []
@@ -443,14 +522,19 @@ class SearchEngine:
         k = min(top_k * 4, len(self._chunks))
         distances, indices = self._index.search(query_emb, k)
 
-        max_l2 = self._meta.get("max_l2_distance", 100.0)
-
         results = []
         for dist, idx in zip(distances[0], indices[0]):
             if idx < 0 or idx >= len(self._chunks):
                 continue
             chunk = self._chunks[idx]
-            score = max(0.0, 1.0 - (dist / max_l2 if max_l2 > 0 else 0.0))
+            # Both backends L2-normalize their output, so FAISS's *squared* L2
+            # distance maps straight back to cosine similarity:
+            #   d^2 = 2 - 2*cos  =>  cos = 1 - d^2/2
+            # The old formula divided that distance by the maximum embedding
+            # *norm* (~1.0 for unit vectors), which pushed every score negative
+            # and clamped the whole result list to 0.0000.
+            score = 1.0 - float(dist) / 2.0
+            score = max(0.0, min(1.0, score))
             scored_chunk = SearchChunk(
                 chunk_id=chunk.chunk_id,
                 text=chunk.text,

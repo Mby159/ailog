@@ -1,4 +1,4 @@
-﻿"""
+"""
 AILog MCP Server 鈥?Expose .ailog files to MCP clients.
 
 Tools provided:
