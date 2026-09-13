@@ -153,7 +153,7 @@ See [`spec/FORMAT.md`](spec/FORMAT.md)
 | YouTube | ✅ Ready | JSON / SRT / VTT subtitles | — |
 | Bilibili | ✅ Ready | JSON (content/from/to) | — |
 | Generic JSON | ✅ Ready | messages array format | — |
-| Notion | 🔜 Planned | — | .ailog → Notion |
+| Notion | ✅ Supported | Notion export JSON | .ailog → Notion pages |
 | Obsidian | ✅ Ready | — | .ailog → Markdown |
 | HTML | ✅ Ready | — | .ailog → Claude-style HTML |
 | PDF | ✅ Ready | — | .ailog → PDF |

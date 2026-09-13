@@ -36,6 +36,22 @@ ailog --help
 python -m ailog.cli --help
 ```
 
+**核心安装不依赖任何第三方包**（导入、导出、CLI、`.ailog` 读写全部是标准库）。
+按需加装可选能力：
+
+| 能力 | 安装 |
+|------|------|
+| PDF 导出 | `python -m pip install -e ".[pdf]"` |
+| Notion 导入 / 导出 | `python -m pip install -e ".[notion]"` |
+| YouTube 字幕抓取 | `python -m pip install -e ".[youtube]"` |
+| MCP 服务器 | `python -m pip install -e ".[mcp]"` |
+| 隐私扫描（GhostGuard） | `python -m pip install -e ".[privacy]"` |
+| 语义搜索 | `python -m pip install -e ".[search]"` |
+| 语义搜索 + 向量模型（效果更好） | `python -m pip install -e ".[search-embeddings]"` |
+| 跑测试 | `python -m pip install -e ".[dev]"` |
+
+缺少可选依赖时，对应命令会给出安装提示，而不是抛裸 traceback。
+
 ### 导入 ChatGPT 对话
 
 ```bash
@@ -151,7 +167,7 @@ ailog convert my-chats.ailog --to json -o my-chats.json
 | YouTube | ✅ 已支持 | JSON 字幕 / SRT / VTT | — |
 | Bilibili | ✅ 已支持 | JSON 字幕（content/from/to） | — |
 | Generic JSON | ✅ 已支持 | messages 数组格式 | — |
-| Notion | 🔜 计划中 | — | .ailog → Notion |
+| Notion | ✅ 已支持 | Notion 导出 JSON | .ailog → Notion 页面 |
 | Obsidian | ✅ 已支持 | — | .ailog → Markdown |
 | HTML | ✅ 已支持 | — | .ailog → Claude风格HTML |
 | PDF | ✅ 已支持 | — | .ailog → 可打印PDF |
@@ -206,26 +222,26 @@ ailog convert my-chats.ailog --to json -o my-chats.json
 | [privacy-proxy](https://github.com/Mby159/privacy-proxy) | OpenAI 兼容隐私代理 |
 | [SplitMind](https://github.com/Mby159/splitmind) | 多 AI 任务编排 |
 | [File Brain](https://github.com/Mby159/file-brain) | 本地文件语义搜索 |
-| [LocalChain](https://github.com/Mby159/local-chain) | 本地可验篗台账（热路径：AILog → LocalChain） |
+| [LocalChain](https://github.com/Mby159/local-chain) | 本地可验证台账（热路径：AILog → LocalChain） |
 
-## 与 LocalChain 集成（可验篗台账热路径）
+## 与 LocalChain 集成（可验证台账热路径）
 
-AILog 可以直接将 interactions 锰定到本地 [LocalChain](https://github.com/Mby159/local-chain) 服务器，得到可验篗的记录。Evidence 层不在热路径上。
+AILog 可以直接将 interactions 锚定到本地 [LocalChain](https://github.com/Mby159/local-chain) 服务器，得到可验证的记录。Evidence 层不在热路径上。
 
 ```bash
 # 启动 LocalChain 服务器（默认 :3456）
 node -e "require('@local-chain/server').createServer('./.localchain', { port: 3456 }).listen()"
 
-# 锰定一个 .ailog
+# 锚定一个 .ailog
 python -m ailog.cli anchor my.ailog --server http://127.0.0.1:3456
 
-# 验证已锰定的 .ailog
+# 验证已锚定的 .ailog
 python -m ailog.cli verify-anchor my.ailog
 ```
 
-AILog 会在每个被锰定的 `Interaction.custom.localchain_anchor` 里记录 `block_index` / `leaf_index` / `leaf_hash` / `server_url` / `anchored_at`。验证时会重新计算 leaf hash 并调用 LocalChain 的 Merkle 验证接口；任何 message / artifact 被篡改都会被检出为 `tampered`。
+AILog 会在每个被锚定的 `Interaction.custom.localchain_anchor` 里记录 `block_index` / `leaf_index` / `leaf_hash` / `server_url` / `anchored_at`。验证时会重新计算 leaf hash 并调用 LocalChain 的 Merkle 验证接口；任何 message / artifact 被篡改都会被检出为 `tampered`。
 
-如果要把已经锰定的 interaction 交给 Evidence 做 proof bundle，可以导出 AILog/LocalChain 的公共桥接材料：
+如果要把已经锚定的 interaction 交给 Evidence 做 proof bundle，可以导出 AILog/LocalChain 的公共桥接材料：
 
 ```bash
 python -m ailog.cli export-anchor-artifact my.ailog \
@@ -234,10 +250,10 @@ python -m ailog.cli export-anchor-artifact my.ailog \
   --anchor-out anchor.json
 ```
 
-- `artifact.json` 是 AILog 锰定到 LocalChain 的 canonical record。
+- `artifact.json` 是 AILog 锚定到 LocalChain 的 canonical record。
 - `anchor.json` 是该 interaction 上的 `custom.localchain_anchor` 元数据。
 
-该热路径只包含 ledger（LocalChain），不包含 Evidence；Evidence 层是另外的冷路径（公证书 / 版权主张），详见 `~/pip/reviews/ai-log-evidence-local-chain-boundary-2026-06-16.md`。
+该热路径只包含 ledger（LocalChain），不包含 Evidence；Evidence 层是另外的冷路径（公证书 / 版权主张）。三者的边界说明见 [evidence README](https://github.com/Mby159/evidence#boundary-with-ailog-and-localchain)。
 
 
 ## 运行测试
