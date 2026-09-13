@@ -4,7 +4,7 @@
 
 **Platform-agnostic open format for AI conversation records** — Unify conversations from ChatGPT, Claude, Gemini, and more into a single open standard, so you truly own your AI interaction data.
 
-> English | [中文](README_zh.md)
+> English | [中文](README.md)
 
 ---
 
